@@ -22,8 +22,32 @@ type Response struct {
 }
 var DB *sql.DB
 
-func GetAllUsers(w http.ResponseWriter, r *http.Request)  {
+// Handles error throwing
+func throwError(e error, w http.ResponseWriter, s int){
+	fmt.Println(e)
+	if s != 0{
+		http.Error(w, e.Error(), s)
+	}
+	panic(e.Error())
+}
 
+
+func GetAllUsers(w http.ResponseWriter, r *http.Request)  {
+	var users []User
+	rows, queryErr := DB.Query("SELECT * FROM users")
+	if queryErr != nil {
+		throwError(queryErr, w, http.StatusInternalServerError)
+	}
+	for rows.Next(){
+		var u User
+		if scanErr := rows.Scan(&u.First, &u.Last); scanErr != nil{
+			throwError(scanErr, w, http.StatusInternalServerError)
+		}
+		users = append(users, u)
+	}
+	if encErr := json.NewEncoder(w).Encode(users); encErr != nil{
+		throwError(encErr, w, http.StatusInternalServerError)
+	}
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request)  {
@@ -32,39 +56,33 @@ func CreateUser(w http.ResponseWriter, r *http.Request)  {
 	// Create an instance of a user to hold data for new user being added
 	var u User
 	// Decode json data that is being sent in the request
-	decodeErr := json.NewDecoder(r.Body).Decode(&u)
 	// Catch error in decoding
-	if decodeErr != nil {
-		fmt.Println(decodeErr)
-		http.Error(w, decodeErr.Error(), http.StatusBadRequest)
-		panic("There was an error when decoding data")
+	if decodeErr := json.NewDecoder(r.Body).Decode(&u); decodeErr != nil {
+		throwError(decodeErr, w, http.StatusBadRequest)
 	}
+	// Format string to be executed on the database
 	execString := fmt.Sprintf("INSERT INTO users(first, last) VALUES('%s', '%s')", u.First, u.Last)
-	_, execErr := DB.Exec(execString)
-	if execErr != nil {
-		fmt.Println(execErr)
-		http.Error(w, execErr.Error(), http.StatusInternalServerError)
-		panic("There was an error inserting user into DB in CreateUser")
+	// Execute the query and catch any errors
+	if _, execErr := DB.Exec(execString); execErr != nil {
+		throwError(execErr, w, http.StatusInternalServerError)
 	}
 	// Return json {Success: true} if everything works
 	userAdded.Success = true
-	json.NewEncoder(w).Encode(userAdded)
+	if encodeErr:= json.NewEncoder(w).Encode(userAdded); encodeErr != nil{
+		throwError(encodeErr, w, http.StatusInternalServerError)
+	}
 }
 
 func CreateDatabase()  {
-	// Create a connection with the env file so we can get vars from it
-	envErr := godotenv.Load(".env")
-	// Catch errors opening .env file
-	if envErr != nil{
-		fmt.Println(envErr)
-		panic("Error opening .env in Create Database")
+	// Create a connection with the env file so we can get vars from it and catch errors opening .env file
+	if envErr := godotenv.Load(".env"); envErr != nil{
+		throwError(envErr, nil, 0)
 	}
 	// Convert the port from a string to an int
 	port, stringToIntErr := strconv.Atoi(os.Getenv("DB_PORT"))
 	// Catch any errors converting string to an int
 	if stringToIntErr != nil{
-		fmt.Println(stringToIntErr)
-		panic("There was an error converting port to an int")
+		throwError(stringToIntErr, nil, 0)
 	}
 	// Create a connection string from env vars by formatting a string with vars
 	connectionString := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
@@ -76,15 +94,14 @@ func CreateDatabase()  {
 	DB, dbErr = sql.Open("postgres", connectionString)
 	// Catch any errors connecting to DB
 	if dbErr != nil {
-		fmt.Println(dbErr)
-		panic("There was a fatal error while opening the database")
+		throwError(dbErr, nil, 0)
 	}
 	_, createTableError := DB.Exec("CREATE TABLE IF NOT EXISTS users(" +
 		"first VARCHAR(30) NOT NULL," +
 		"last VARCHAR(30) NOT NULL)")
+
 	if createTableError != nil {
-		fmt.Println(createTableError)
-		panic("Error creating user table in CreateDatabase")
+		throwError(createTableError, nil, 0)
 	}
 }
 
@@ -92,11 +109,9 @@ func handleRequests(){
 	r := mux.NewRouter()
 	r.HandleFunc("/users", GetAllUsers)
 	r.HandleFunc("/createuser", CreateUser)
-	err := http.ListenAndServe(":8080", r)
-
-	if err != nil {
-		fmt.Println(err)
-		panic("There was an error when starting the server")
+	// Start the server and catch any errors starting the server
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		throwError(err, nil, 0)
 	}
 }
 
