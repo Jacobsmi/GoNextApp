@@ -14,6 +14,7 @@ import (
 
 // Create a user struct to create instances of users
 type User struct{
+	ID int
 	First string
 	Last string
 }
@@ -31,20 +32,26 @@ func throwError(e error, w http.ResponseWriter, s int){
 	panic(e.Error())
 }
 
-
+// Returns all users in the database in the form of JSON
 func GetAllUsers(w http.ResponseWriter, r *http.Request)  {
+	// Create an empty list of users
 	var users []User
+	// Query the database
 	rows, queryErr := DB.Query("SELECT * FROM users")
+	// Catch and handle errors
 	if queryErr != nil {
 		throwError(queryErr, w, http.StatusInternalServerError)
 	}
+	// For all the rows produced by the query get the user information, put it into a temp user, and then add it to
+	// the users list
 	for rows.Next(){
 		var u User
-		if scanErr := rows.Scan(&u.First, &u.Last); scanErr != nil{
+		if scanErr := rows.Scan(&u.ID, &u.First, &u.Last); scanErr != nil{
 			throwError(scanErr, w, http.StatusInternalServerError)
 		}
 		users = append(users, u)
 	}
+	// Encode the users list and send it back as JSON
 	if encErr := json.NewEncoder(w).Encode(users); encErr != nil{
 		throwError(encErr, w, http.StatusInternalServerError)
 	}
@@ -97,6 +104,7 @@ func CreateDatabase()  {
 		throwError(dbErr, nil, 0)
 	}
 	_, createTableError := DB.Exec("CREATE TABLE IF NOT EXISTS users(" +
+		"id SERIAL," +
 		"first VARCHAR(30) NOT NULL," +
 		"last VARCHAR(30) NOT NULL)")
 
