@@ -34,6 +34,7 @@ func throwError(e error, w http.ResponseWriter, s int){
 
 // Returns all users in the database in the form of JSON
 func GetAllUsers(w http.ResponseWriter, r *http.Request)  {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 	// Create an empty list of users
 	var users []User
 	// Query the database
