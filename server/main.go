@@ -82,7 +82,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request)  {
 
 func CreateDatabase()  {
 	// Create a connection with the env file so we can get vars from it and catch errors opening .env file
-	if envErr := godotenv.Load(".env"); envErr != nil{
+	if envErr := godotenv.Load("./server/.env"); envErr != nil{
 		throwError(envErr, nil, 0)
 	}
 	// Convert the port from a string to an int
