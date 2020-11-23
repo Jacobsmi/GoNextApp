@@ -81,6 +81,28 @@ func CreateUser(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
+func DeleteUser(w http.ResponseWriter, r *http.Request)  {
+	var deleteUser User
+	var deleted Response
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	// Get the ID that is sent in the request ans store in a local object
+	if decodeErr := json.NewDecoder(r.Body).Decode(&deleteUser); decodeErr != nil {
+		throwError(decodeErr, w, http.StatusBadRequest)
+	}
+	// Format string to be executed on the database
+	execString := fmt.Sprintf("DELETE FROM users WHERE id=%d", deleteUser.ID)
+	// Execute the query and catch any errors
+	if _, execErr := DB.Exec(execString); execErr != nil {
+		throwError(execErr, w, http.StatusInternalServerError)
+	}
+	deleted.Success = true
+	if encodeErr := json.NewEncoder(w).Encode(deleted); encodeErr != nil{
+		throwError(encodeErr, w, http.StatusInternalServerError)
+	}
+
+
+}
+
 func CreateDatabase()  {
 	// Create a connection with the env file so we can get vars from it and catch errors opening .env file
 	if envErr := godotenv.Load("./server/.env"); envErr != nil{
@@ -118,6 +140,7 @@ func handleRequests(){
 	r := mux.NewRouter()
 	r.HandleFunc("/users", GetAllUsers)
 	r.HandleFunc("/createuser", CreateUser)
+	r.HandleFunc("/delete", DeleteUser)
 	// Start the server and catch any errors starting the server
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		throwError(err, nil, 0)

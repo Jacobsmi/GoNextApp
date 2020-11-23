@@ -1,5 +1,7 @@
 import styles from '../styles/Home.module.css';
 import React, {useEffect, useState} from 'react';
+import User from '../components/user';
+
 
 export default function Home() {
   const [users, setUsers] = useState([])
@@ -10,13 +12,18 @@ export default function Home() {
     setUsers(respJSON);
   }, [])
 
+  const deleteUser = (id) =>{
+    const newUsers = users.filter((user)=>{
+      return user.ID !== id;
+    })
+    setUsers(newUsers);
+  }
+
   return (
     <div className='index'>
       {users.map(user=>{
         return(
-          <div className='user' key={user.ID}>
-            {user.ID}, {user.First} {user.Last}
-          </div>
+            <User key={user.ID} id={user.ID} first={user.First} last={user.Last} deleteUser={deleteUser} />
         );
       })}
     </div>
